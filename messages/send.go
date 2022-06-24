@@ -1,27 +1,12 @@
-package xfiv
+package messages
 
 import (
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
-
-	env "github.com/joho/godotenv"
 )
-
-func GoDotEnvVariable(key string) string {
-
-	// load .env file
-	err := env.Load(".env")
-
-	if err != nil {
-		log.Fatalf("Error loading .env file")
-	}
-
-	return os.Getenv(key)
-}
 
 // Send a message with 3 Buttons
 func SendButton(from, to, apiKey, BotName, Title, Caption, m1, m2, m3 string) string {
