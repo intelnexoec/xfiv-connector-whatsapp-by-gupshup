@@ -5,10 +5,13 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/gommon/color"
+	"github.com/paij0se/xfiv/others"
 )
 
 type Message struct {
@@ -24,6 +27,7 @@ type Message struct {
 			Text    string `json:"text"`
 			Url     string `json:"url"`
 			Caption string `json:"caption"`
+			Title   string `json:"title"`
 		} `json:"payload"`
 		Sender struct {
 			Phone       string `json:"phone"`
@@ -35,7 +39,7 @@ type Message struct {
 }
 
 func ValidateMessage(e echo.Context, message string) error {
-	events := []string{"delivered", "seen", "enqueued"}
+	events := []string{"delivered", "seen", "enqueued", "sent"}
 	for _, event := range events {
 		if strings.Contains(message, event) {
 			log.Println(color.Blue("[INFO]"), "Message event:", event)
@@ -86,12 +90,44 @@ func Post(e echo.Context) error {
 		fmt.Println(color.Green("Teléfono:"), phone)
 		fmt.Println(color.Green("Url:"), fileUrl)
 	}
-	// Por si alguno mensaje comienza en hola.
+	// Por si algun mensaje comienza en hola.
 	// No es necesario, solo es de prueba.
 	if strings.HasPrefix(text, "hola") || strings.HasPrefix(text, "Hola") {
-		return e.String(200, `¡Hola! *`+name+`*, ¿En qué puedo ayudarte?`)
+		params := url.Values{}
+		params.Add("channel", `whatsapp`)
+		params.Add("source", "917834811114")
+		params.Add("destination", phone)
+		params.Add("message", `{"type":"quick_reply","content":{"type":"text","text":"¡Hola *`+name+`*!, ¿Qué servicio quieres contratar?","caption":"Servicios⬇"},"options":[{"type":"text","title":"IA🤖"},{"type":"text","title":"Cripto💱"},{"type":"text","title":"Cloud☁"}]}`)
+		params.Add("src.name", "MrTelephoneMen")
+		body := strings.NewReader(params.Encode())
+
+		req, err := http.NewRequest("POST", "https://api.gupshup.io/sm/api/v1/msg", body)
+		if err != nil {
+			log.Fatal(err)
+		}
+		req.Header.Set("Cache-Control", "no-cache")
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set("Apikey", others.GoDotEnvVariable("API_KEY"))
+
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			log.Println(err)
+		}
+		defer resp.Body.Close()
+		res, _ := ioutil.ReadAll(resp.Body)
+		fmt.Println(string(res))
 	}
 	fmt.Println("----------------------")
+	reply := message.Payload.Payload.Title
+	switch reply {
+	case "IA🤖":
+		e.String(200, `*`+name+`*, La IA es el futuro...`)
+	case "Cripto💱":
+		e.String(200, `*`+name+`*, Es el banco de criptomonedas...`)
+	case "Cloud☁":
+		e.String(200, `¡Hola *`+name+`*!, Los servicios Cloud están en desarrollo...`)
+	}
+
 	e.String(200, "👋🏿")
 	return nil
 
