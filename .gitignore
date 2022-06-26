@@ -1,3 +1,4 @@
 .env
 *.exe
 /node_modules
+test.json
