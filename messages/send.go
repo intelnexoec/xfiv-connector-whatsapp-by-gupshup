@@ -1,6 +1,9 @@
 package messages
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -9,7 +12,7 @@ import (
 )
 
 // Send a message with 3 Buttons
-func SendButton(from, to, apiKey, BotName, Title, Caption, m1, m2, m3 string) string {
+func SendButton(from, to, apiKey, BotName, Title, Caption, m1, m2, m3 string) {
 	params := url.Values{}
 	params.Add("channel", `whatsapp`)
 	params.Add("source", from)
@@ -32,11 +35,17 @@ func SendButton(from, to, apiKey, BotName, Title, Caption, m1, m2, m3 string) st
 	}
 	defer resp.Body.Close()
 	res, _ := ioutil.ReadAll(resp.Body)
-	return string(res)
+	var prettyJSON bytes.Buffer
+	err = json.Indent(&prettyJSON, res, "", "\t")
+	if err != nil {
+		log.Println(err)
+	}
+
+	fmt.Println(prettyJSON.String())
 }
 
 // Send a Message
-func SendMessage(from, to, apiKey, BotName, Text string) string {
+func SendMessage(from, to, apiKey, BotName, Text string) {
 	params := url.Values{}
 	params.Add("channel", `whatsapp`)
 	params.Add("source", from)
@@ -59,7 +68,13 @@ func SendMessage(from, to, apiKey, BotName, Text string) string {
 	}
 	defer resp.Body.Close()
 	res, _ := ioutil.ReadAll(resp.Body)
-	return string(res)
+	var prettyJSON bytes.Buffer
+	err = json.Indent(&prettyJSON, res, "", "\t")
+	if err != nil {
+		log.Println(err)
+	}
+
+	fmt.Println(prettyJSON.String())
 }
 
 // Esto es para ver cuales usuarios son opt-in, o sea tienen la autorazación para que el bot les escriba.

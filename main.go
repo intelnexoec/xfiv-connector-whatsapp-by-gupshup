@@ -1,16 +1,18 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
-	"net/url"
 	"strings"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/gommon/color"
+	"github.com/paij0se/xfiv/messages"
 	"github.com/paij0se/xfiv/others"
 )
 
@@ -36,6 +38,39 @@ type Message struct {
 			DialCode    string `json:"dial_code"`
 		} `json:"sender"`
 	} `json:"payload"`
+}
+
+type Csml struct {
+	RequestID string `json:"request_id"`
+	Client    struct {
+		BotID     string `json:"bot_id"`
+		ChannelID string `json:"channel_id"`
+		UserID    string `json:"user_id"`
+	} `json:"client"`
+	ConversationEnd bool `json:"conversation_end"`
+	Messages        []struct {
+		ConversationID   string `json:"conversation_id"`
+		Direction        string `json:"direction"`
+		InteractionOrder int    `json:"interaction_order"`
+		Payload          struct {
+			Content struct {
+				Text    string `json:"text"`
+				Url     string `json:"url"`
+				Buttons []struct {
+					Content struct {
+						Accepts     []string `json:"accepts"`
+						Payload     string   `json:"payload"`
+						TitleButton string   `json:"title"`
+					} `json:"content"`
+					ContentType string `json:"content_type"`
+				} `json:"buttons"`
+				Title string `json:"title"`
+			} `json:"content"`
+			ContentType string `json:"content_type"`
+		} `json:"payload"`
+	} `json:"messages"`
+	ReceivedAt   time.Time `json:"received_at"`
+	IsAuthorized bool      `json:"is_authorized"`
 }
 
 func ValidateMessage(e echo.Context, message string) error {
@@ -64,12 +99,62 @@ func ValidateMessage(e echo.Context, message string) error {
 	return nil
 }
 
+func PostCsml(name, text, phone string) {
+	url := "https://clients.csml.dev/v1/api/chat"
+	method := "POST"
+	payload := strings.NewReader(`{` + "" + `"client": {` + "" + `"user_id": "1132110816"` + "" + `},` + "" + `"metadata": {` + "" + `"first_name": "` + name + `",` + "" + `"last_name": "Marret"` + "" + `},` + "" + `"request_id": "3be063f9-a803-4dbd-af52-0760257348d4",` + "" + `"payload": {` + "" + `"content": {` + "" + `"text": "` + text + `"` + "" + `},` + "" + `"content_type": "text"` + "" + `}` + "" + `}`)
+	client := &http.Client{}
+	req, err := http.NewRequest(method, url, payload)
+	if err != nil {
+		fmt.Println(err)
+	}
+	req.Header.Add("x-api-key", others.GoDotEnvVariable("CSML"))
+	req.Header.Add("Content-Type", "application/json")
+	res, err := client.Do(req)
+	if err != nil {
+		fmt.Println(err)
+	}
+	defer res.Body.Close()
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		fmt.Println(err)
+	}
+	var prettyJSON bytes.Buffer
+	error := json.Indent(&prettyJSON, body, "", "\t")
+	if error != nil {
+		log.Println(error)
+	}
+	fmt.Println(prettyJSON.String())
+	var csml Csml
+	json.Unmarshal(body, &csml)
+	ContentType := csml.Messages[0].Payload.ContentType
+	ButtonsTitle := csml.Messages[0].Payload.Content.Buttons
+	fmt.Println("Content Type:", ContentType)
+	switch ContentType {
+	case "question":
+		Title := strings.ReplaceAll(csml.Messages[0].Payload.Content.Title, "Null", name)
+		messages.SendButton("917834811114", phone, others.GoDotEnvVariable("API_KEY"), "Testspaij0se", Title, "", ButtonsTitle[0].Content.TitleButton, ButtonsTitle[1].Content.TitleButton, ButtonsTitle[2].Content.TitleButton)
+	case "text":
+		fmt.Println(csml.Messages[0].Direction, ":", csml.Messages[0].Payload.Content.Text)
+		messages.SendMessage("917834811114", phone, others.GoDotEnvVariable("API_KEY"), "Testspaij0se", csml.Messages[0].Payload.Content.Text)
+	case "image":
+		fmt.Println(csml.Messages[0].Payload.Content.Title, ":", csml.Messages[0].Payload.Content.Url)
+	default:
+		fmt.Println("No se puede procesar el tipo de contenido")
+	}
+}
+
 func Post(e echo.Context) error {
 	reqBody, err := ioutil.ReadAll(e.Request().Body)
 	if err != nil {
 		log.Println(err)
 	}
-	fmt.Println(string(reqBody))
+	var prettyJSON bytes.Buffer
+	error := json.Indent(&prettyJSON, reqBody, "", "\t")
+	if error != nil {
+		log.Println(error)
+	}
+	fmt.Println(prettyJSON.String())
 	var message Message
 	err = json.Unmarshal(reqBody, &message)
 	if err != nil {
@@ -89,46 +174,9 @@ func Post(e echo.Context) error {
 		fmt.Println(color.Green("Caption:"), caption)
 		fmt.Println(color.Green("Teléfono:"), phone)
 		fmt.Println(color.Green("Url:"), fileUrl)
+		PostCsml(name, text, phone)
+		fmt.Println("_________________________________________________")
 	}
-	// Por si algun mensaje comienza en hola.
-	// No es necesario, solo es de prueba.
-	if strings.HasPrefix(text, "hola") || strings.HasPrefix(text, "Hola") {
-		params := url.Values{}
-		params.Add("channel", `whatsapp`)
-		params.Add("source", "917834811114")
-		params.Add("destination", phone)
-		params.Add("message", `{"type":"quick_reply","content":{"type":"text","text":"¡Hola *`+name+`*!, ¿Qué servicio quieres contratar?","caption":"Servicios⬇"},"options":[{"type":"text","title":"IA🤖"},{"type":"text","title":"Cripto💱"},{"type":"text","title":"Cloud☁"}]}`)
-		params.Add("src.name", "MrTelephoneMen")
-		body := strings.NewReader(params.Encode())
-
-		req, err := http.NewRequest("POST", "https://api.gupshup.io/sm/api/v1/msg", body)
-		if err != nil {
-			log.Fatal(err)
-		}
-		req.Header.Set("Cache-Control", "no-cache")
-		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-		req.Header.Set("Apikey", others.GoDotEnvVariable("API_KEY"))
-
-		resp, err := http.DefaultClient.Do(req)
-		if err != nil {
-			log.Println(err)
-		}
-		defer resp.Body.Close()
-		res, _ := ioutil.ReadAll(resp.Body)
-		fmt.Println(string(res))
-	}
-	fmt.Println("----------------------")
-	reply := message.Payload.Payload.Title
-	switch reply {
-	case "IA🤖":
-		e.String(200, `*`+name+`*, La IA es el futuro...`)
-	case "Cripto💱":
-		e.String(200, `*`+name+`*, Es el banco de criptomonedas...`)
-	case "Cloud☁":
-		e.String(200, `¡Hola *`+name+`*!, Los servicios Cloud están en desarrollo...`)
-	}
-
-	e.String(200, "👋🏿")
 	return nil
 
 }

@@ -14,12 +14,12 @@ func TestButton(T *testing.T) {
 			log.Println(SendButton(GoDotEnvVariable("ApiNumber"), Number, GoDotEnvVariable("ApiKey"), "paij0seXfiv", "Selecciona el metodo de pago", "⬇⬇⬇", "Efectivo💲💰", "Crédito/Débito💳", "Btc/Eth🤖"))
 		}
 	*/
-	log.Println(SendButton(others.GoDotEnvVariable("API_NUMBER"), others.GoDotEnvVariable("NUMBER"), others.GoDotEnvVariable("API_KEY"), "paij0setest", "Selecciona el metodo de pago", "⬇⬇⬇", "Efectivo💲💰", "Crédito/Débito💳", "Btc/Eth🤖"))
+	SendButton(others.GoDotEnvVariable("API_NUMBER"), others.GoDotEnvVariable("NUMBER"), others.GoDotEnvVariable("API_KEY"), "paij0setest", "Selecciona el metodo de pago", "⬇⬇⬇", "Efectivo💲💰", "Crédito/Débito💳", "Btc/Eth🤖")
 
 }
 
 func TestMessage(T *testing.T) {
-	log.Println(SendMessage(others.GoDotEnvVariable("API_NUMBER"), others.GoDotEnvVariable("NUMBER"), others.GoDotEnvVariable("API_KEY"), "paij0setest", "Bienvenido a Xfiv"))
+	SendMessage(others.GoDotEnvVariable("API_NUMBER"), others.GoDotEnvVariable("NUMBER"), others.GoDotEnvVariable("API_KEY"), "paij0setest", "Bienvenido a Xfiv")
 
 }
 
